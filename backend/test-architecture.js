@@ -6,7 +6,7 @@
 
 import { httpScrapingService } from './src/service/HttpScrapingService.js';
 import axios from 'axios';
-import cheerio from 'cheerio';
+import { load } from 'cheerio';
 
 console.log('🔍 Verificando nueva arquitectura...');
 
@@ -19,7 +19,7 @@ async function testDependencies() {
     console.log('✅ Axios funcionando');
     
     // Verificar cheerio
-    const $ = cheerio.load('<html><body><h1>Test</h1></body></html>');
+    const $ = load('<html><body><h1>Test</h1></body></html>');
     const title = $('h1').text();
     console.log('✅ Cheerio funcionando:', title);
     
@@ -40,7 +40,7 @@ async function testHttpService() {
     // Test con una URL simple
     const testUrl = 'https://httpbin.org/html';
     const response = await axios.get(testUrl);
-    const $ = cheerio.load(response.data);
+    const $ = load(response.data);
     
     console.log('✅ Servicio HTTP funcional');
     

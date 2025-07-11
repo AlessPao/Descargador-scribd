@@ -1,5 +1,5 @@
 import axios from 'axios';
-import cheerio from 'cheerio';
+import { load } from 'cheerio';
 import { configLoader } from '../utils/io/ConfigLoader.js';
 import { pdfGenerator } from '../utils/io/PdfGenerator.js';
 import fs from 'fs';
@@ -33,7 +33,7 @@ class LightScrapingService {
       console.log(`🔍 Extrayendo contenido de: ${url}`);
       
       const response = await this.axios.get(url);
-      const $ = cheerio.load(response.data);
+      const $ = load(response.data);
       
       // Extraer información básica
       const title = $('title').text() || 'documento';
