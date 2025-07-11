@@ -14,6 +14,4 @@ services:
         value: false
       - key: PUPPETEER_CACHE_DIR
         value: /opt/render/.cache/puppeteer
-      - key: PUPPETEER_EXECUTABLE_PATH
-        value: /usr/bin/google-chrome
     healthCheckPath: /api/config

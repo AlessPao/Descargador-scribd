@@ -33,46 +33,42 @@ class PuppeteerSg {
         '--disable-features=VizDisplayCompositor'
       ];
       
-      // Intentar diferentes rutas de Chromium
-      const possiblePaths = [
-        '/usr/bin/google-chrome',
-        '/usr/bin/chromium-browser',
-        '/usr/bin/chromium',
-        '/snap/bin/chromium',
-        process.env.PUPPETEER_EXECUTABLE_PATH
-      ].filter(Boolean);
-      
-      for (const executablePath of possiblePaths) {
+      // No establecer executablePath para permitir que Puppeteer use su propio Chromium
+      // Solo usar executablePath si está explícitamente definido y el archivo existe
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         try {
           const fs = await import('fs');
-          if (fs.existsSync(executablePath)) {
-            puppeteerOptions.executablePath = executablePath;
-            console.log(`Using Chromium at: ${executablePath}`);
-            break;
+          if (fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+            puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+            console.log(`Using custom Chromium at: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+          } else {
+            console.log(`Custom path ${process.env.PUPPETEER_EXECUTABLE_PATH} not found, using Puppeteer's bundled Chromium`);
           }
         } catch (error) {
-          console.log(`Could not access ${executablePath}:`, error.message);
+          console.log(`Could not access ${process.env.PUPPETEER_EXECUTABLE_PATH}:`, error.message);
         }
+      } else {
+        console.log('Using Puppeteer\'s bundled Chromium');
       }
     }
 
     try {
+      console.log('🚀 Launching Puppeteer with options:', JSON.stringify(puppeteerOptions, null, 2));
       this.browser = await puppeteer.launch(puppeteerOptions);
       console.log('✅ Puppeteer launched successfully');
     } catch (error) {
       console.error('❌ Failed to launch Puppeteer:', error.message);
       
-      // Intentar instalación automática si falla
-      if (error.message.includes('Could not find Chromium')) {
-        console.log('🔄 Attempting to install Chromium...');
+      // Intentar sin executablePath como fallback
+      if (puppeteerOptions.executablePath) {
+        console.log('🔄 Retrying without custom executable path...');
+        delete puppeteerOptions.executablePath;
         try {
-          const { execSync } = await import('child_process');
-          execSync('npx @puppeteer/browsers install chrome@stable', { stdio: 'inherit' });
-          console.log('✅ Chromium installed, retrying...');
           this.browser = await puppeteer.launch(puppeteerOptions);
-        } catch (installError) {
-          console.error('❌ Failed to install Chromium:', installError.message);
-          throw error;
+          console.log('✅ Puppeteer launched successfully with bundled Chromium');
+        } catch (fallbackError) {
+          console.error('❌ Failed to launch even with bundled Chromium:', fallbackError.message);
+          throw fallbackError;
         }
       } else {
         throw error;
