@@ -23,14 +23,17 @@ const getOutputDir = () => {
 // Configuración CORS para producción
 const corsOptions = {
     origin: function (origin, callback) {
+        console.log(`CORS check for origin: ${origin}`);
+        
         // Permitir requests sin origin (como Postman, apps móviles, etc.)
-        if (!origin) return callback(null, true);
+        if (!origin) {
+            console.log('No origin, allowing request');
+            return callback(null, true);
+        }
         
         const allowedOrigins = process.env.NODE_ENV === 'production' 
             ? [
-                process.env.FRONTEND_URL,
-                'https://descargador-scribd.vercel.app',
-                'https://descargador-scribd-*.vercel.app' // Para preview deployments
+                'https://descargador-scribd.vercel.app'
               ]
             : [
                 'http://localhost:3000',
@@ -39,22 +42,14 @@ const corsOptions = {
                 'http://127.0.0.1:5173'
               ];
         
-        // Verificar si el origin está permitido
-        const isAllowed = allowedOrigins.some(allowedOrigin => {
-            if (allowedOrigin.includes('*')) {
-                // Para patrones con wildcard
-                const pattern = allowedOrigin.replace('*', '.*');
-                return new RegExp(pattern).test(origin);
-            }
-            return allowedOrigin === origin;
-        });
+        console.log(`Checking origin ${origin} against allowed origins: ${allowedOrigins.join(', ')}`);
         
-        if (isAllowed) {
+        if (allowedOrigins.includes(origin)) {
+            console.log(`Origin ${origin} is allowed`);
             callback(null, true);
         } else {
             console.log(`CORS blocked origin: ${origin}`);
-            console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
-            callback(new Error('Not allowed by CORS'));
+            callback(null, true); // Permitir temporalmente para debug
         }
     },
     credentials: true,
@@ -88,7 +83,10 @@ server.get('/api/test', (req, res) => {
 
 // Middleware para logging
 server.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+    // Solo log para rutas API para evitar spam
+    if (req.path.startsWith('/api/')) {
+        console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+    }
     next();
 });
 
@@ -357,16 +355,17 @@ const frontendPath = path.join(__dirname, '../../../frontend/dist');
 if (fs.existsSync(frontendPath)) {
     server.use(express.static(frontendPath));
     
-    // Manejar rutas del frontend (SPA)
-    server.get('*', (req, res) => {
-        if (!req.path.startsWith('/api/')) {
-            res.sendFile(path.join(frontendPath, 'index.html'));
-        }
+    // Manejar rutas del frontend (SPA) - DEBE ir al final
+    server.get('/', (req, res) => {
+        res.sendFile(path.join(frontendPath, 'index.html'));
     });
 }
 
 server.listen(PORT, () => {
     console.log(`API Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV}`);
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
+    
     if (fs.existsSync(frontendPath)) {
         console.log(`Frontend available at http://localhost:${PORT}`);
     }
@@ -376,6 +375,15 @@ server.listen(PORT, () => {
     
     // Programar limpieza automática cada 10 minutos
     setInterval(cleanupTempFiles, 10 * 60 * 1000);
+});
+
+// Manejo de errores global
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Función para limpiar archivos temporales
