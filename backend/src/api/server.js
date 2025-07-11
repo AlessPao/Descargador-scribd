@@ -20,16 +20,38 @@ const getOutputDir = () => {
     return path.isAbsolute(outputDir) ? outputDir : path.resolve(process.cwd(), outputDir);
 };
 
-// Configuración CORS simple y robusta
+// Configuración CORS más robusta
 const corsOptions = {
-    origin: ['https://descargador-scribd.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
+    origin: function (origin, callback) {
+        // Permitir requests sin origen (como postman, curl)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'https://descargador-scribd.vercel.app',
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'http://localhost:3001',
+            'https://descargador-scribd.onrender.com'
+        ];
+        
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log('🚫 Origen bloqueado:', origin);
+            callback(new Error('No permitido por CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    optionsSuccessStatus: 200 // Para compatibilidad con navegadores antiguos
 };
 
 // Middleware
 server.use(cors(corsOptions));
+
+// Middleware adicional para manejar preflight requests
+server.options('*', cors(corsOptions));
 
 server.use(express.json());
 server.use(express.static(getOutputDir()));
@@ -44,15 +66,40 @@ server.get('/api/test', (req, res) => {
         timestamp: new Date().toISOString(),
         origin: req.headers.origin,
         nodeEnv: process.env.NODE_ENV,
-        frontendUrl: process.env.FRONTEND_URL
+        frontendUrl: process.env.FRONTEND_URL,
+        headers: req.headers
     });
 });
 
-// Middleware para logging
+// Endpoint adicional para depurar CORS
+server.get('/api/cors-test', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.json({
+        message: 'CORS test endpoint',
+        timestamp: new Date().toISOString(),
+        origin: req.headers.origin,
+        method: req.method,
+        headers: req.headers
+    });
+});
+
+// Middleware para logging detallado
 server.use((req, res, next) => {
-    // Solo log para rutas API para evitar spam
+    // Log detallado para requests API
     if (req.path.startsWith('/api/')) {
-        console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+        console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+        console.log('Origin:', req.headers.origin);
+        console.log('User-Agent:', req.headers['user-agent']);
+        console.log('Content-Type:', req.headers['content-type']);
+        
+        // Log adicional para preflight requests
+        if (req.method === 'OPTIONS') {
+            console.log('🔄 Preflight request detected');
+            console.log('Access-Control-Request-Method:', req.headers['access-control-request-method']);
+            console.log('Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
+        }
     }
     next();
 });
