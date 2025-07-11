@@ -22,20 +22,75 @@ const getOutputDir = () => {
 
 // Configuración CORS para producción
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production' 
-        ? [process.env.FRONTEND_URL, 'https://descargador-scribd.vercel.app']
-        : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173'],
+    origin: function (origin, callback) {
+        // Permitir requests sin origin (como Postman, apps móviles, etc.)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = process.env.NODE_ENV === 'production' 
+            ? [
+                process.env.FRONTEND_URL,
+                'https://descargador-scribd.vercel.app',
+                'https://descargador-scribd-*.vercel.app' // Para preview deployments
+              ]
+            : [
+                'http://localhost:3000',
+                'http://127.0.0.1:3000',
+                'http://localhost:5173',
+                'http://127.0.0.1:5173'
+              ];
+        
+        // Verificar si el origin está permitido
+        const isAllowed = allowedOrigins.some(allowedOrigin => {
+            if (allowedOrigin.includes('*')) {
+                // Para patrones con wildcard
+                const pattern = allowedOrigin.replace('*', '.*');
+                return new RegExp(pattern).test(origin);
+            }
+            return allowedOrigin === origin;
+        });
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.log(`CORS blocked origin: ${origin}`);
+            console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 };
 
 // Middleware
 server.use(cors(corsOptions));
+
+// Middleware adicional para manejar preflight requests
+server.options('*', cors(corsOptions));
+
 server.use(express.json());
 server.use(express.static(getOutputDir()));
 
 // Store para progreso de descargas
 const downloadProgress = new Map();
+
+// Endpoint de prueba para verificar CORS
+server.get('/api/test', (req, res) => {
+    res.json({ 
+        message: 'CORS is working!', 
+        timestamp: new Date().toISOString(),
+        origin: req.headers.origin,
+        nodeEnv: process.env.NODE_ENV,
+        frontendUrl: process.env.FRONTEND_URL
+    });
+});
+
+// Middleware para logging
+server.use((req, res, next) => {
+    console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+    next();
+});
 
 // Endpoints
 server.post('/api/download', async (req, res) => {
