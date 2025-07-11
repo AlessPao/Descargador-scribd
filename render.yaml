@@ -3,7 +3,7 @@ services:
     name: scribd-dl-backend
     env: node
     plan: free
-    buildCommand: cd backend && npm install
+    buildCommand: cd backend && npm install && npm run install-chrome
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
@@ -14,4 +14,8 @@ services:
         value: false
       - key: PUPPETEER_CACHE_DIR
         value: /opt/render/.cache/puppeteer
+      - key: CHROME_BIN
+        value: /usr/bin/google-chrome
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/google-chrome
     healthCheckPath: /api/config

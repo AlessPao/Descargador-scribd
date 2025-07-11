@@ -8,7 +8,8 @@
     "server": "node src/api/server.js",
     "dev": "node src/api/server.js",
     "cli": "node run.js",
-    "postinstall": "echo 'Installing Chromium...' && npx @puppeteer/browsers install chrome@stable --path ./browsers || npx puppeteer install || echo 'Chromium will be installed on first use'",
+    "postinstall": "node install-chrome.js",
+    "install-chrome": "node install-chrome.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:cov": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
@@ -22,6 +23,7 @@
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "axios": "^1.6.8",
+    "cheerio": "^1.1.0",
     "cli-progress": "^3.12.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",

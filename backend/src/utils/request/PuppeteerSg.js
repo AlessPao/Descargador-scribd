@@ -30,50 +30,104 @@ class PuppeteerSg {
         '--disable-gpu',
         '--window-size=1920x1080',
         '--disable-web-security',
-        '--disable-features=VizDisplayCompositor'
+        '--disable-features=VizDisplayCompositor',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-extensions',
+        '--disable-plugins',
+        '--disable-default-apps',
+        '--disable-sync',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-background-networking'
       ];
       
-      // No establecer executablePath para permitir que Puppeteer use su propio Chromium
-      // Solo usar executablePath si está explícitamente definido y el archivo existe
-      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        try {
-          const fs = await import('fs');
-          if (fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
-            puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-            console.log(`Using custom Chromium at: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
-          } else {
-            console.log(`Custom path ${process.env.PUPPETEER_EXECUTABLE_PATH} not found, using Puppeteer's bundled Chromium`);
+      // Intentar detectar Chrome automáticamente en diferentes rutas
+      const possibleChromePaths = [
+        process.env.PUPPETEER_EXECUTABLE_PATH,
+        process.env.CHROME_BIN,
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/opt/google/chrome/chrome',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      ];
+      
+      let chromePath = null;
+      for (const path of possibleChromePaths) {
+        if (path) {
+          try {
+            const fs = await import('fs');
+            if (fs.existsSync(path)) {
+              chromePath = path;
+              console.log(`Found Chrome at: ${path}`);
+              break;
+            }
+          } catch (error) {
+            console.log(`Could not access ${path}:`, error.message);
           }
-        } catch (error) {
-          console.log(`Could not access ${process.env.PUPPETEER_EXECUTABLE_PATH}:`, error.message);
         }
+      }
+      
+      if (chromePath) {
+        puppeteerOptions.executablePath = chromePath;
+        console.log(`Using Chrome at: ${chromePath}`);
       } else {
-        console.log('Using Puppeteer\'s bundled Chromium');
+        console.log('No Chrome installation found, using Puppeteer\'s bundled Chromium');
       }
     }
 
-    try {
-      console.log('🚀 Launching Puppeteer with options:', JSON.stringify(puppeteerOptions, null, 2));
-      this.browser = await puppeteer.launch(puppeteerOptions);
-      console.log('✅ Puppeteer launched successfully');
-    } catch (error) {
-      console.error('❌ Failed to launch Puppeteer:', error.message);
+    // Intentar múltiples estrategias de lanzamiento
+    const launchStrategies = [
+      // Estrategia 1: Con la configuración actual
+      () => puppeteer.launch(puppeteerOptions),
       
-      // Intentar sin executablePath como fallback
-      if (puppeteerOptions.executablePath) {
+      // Estrategia 2: Sin executablePath
+      () => {
+        const options = { ...puppeteerOptions };
+        delete options.executablePath;
         console.log('🔄 Retrying without custom executable path...');
-        delete puppeteerOptions.executablePath;
-        try {
-          this.browser = await puppeteer.launch(puppeteerOptions);
-          console.log('✅ Puppeteer launched successfully with bundled Chromium');
-        } catch (fallbackError) {
-          console.error('❌ Failed to launch even with bundled Chromium:', fallbackError.message);
-          throw fallbackError;
+        return puppeteer.launch(options);
+      },
+      
+      // Estrategia 3: Con configuración mínima
+      () => {
+        console.log('🔄 Retrying with minimal configuration...');
+        return puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+      },
+      
+      // Estrategia 4: Solo headless
+      () => {
+        console.log('🔄 Retrying with headless only...');
+        return puppeteer.launch({ headless: true });
+      }
+    ];
+
+    let lastError = null;
+    for (let i = 0; i < launchStrategies.length; i++) {
+      try {
+        console.log(`� Launching Puppeteer (attempt ${i + 1}/${launchStrategies.length})...`);
+        if (i === 0) {
+          console.log('Options:', JSON.stringify(puppeteerOptions, null, 2));
         }
-      } else {
-        throw error;
+        
+        this.browser = await launchStrategies[i]();
+        console.log('✅ Puppeteer launched successfully');
+        return;
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ Launch attempt ${i + 1} failed:`, error.message);
       }
     }
+    
+    // Si llegamos aquí, todos los intentos fallaron
+    console.error('❌ All Puppeteer launch attempts failed');
+    throw new Error(`Failed to launch Puppeteer after ${launchStrategies.length} attempts. Last error: ${lastError.message}`);
   }
 
   /**
