@@ -9,5 +9,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        value: https://your-vercel-app.vercel.app
+        value: https://descargador-scribd.vercel.app
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: false
     healthCheckPath: /api/config
