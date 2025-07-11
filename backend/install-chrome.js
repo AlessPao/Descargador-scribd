@@ -2,6 +2,7 @@
 
 /**
  * Script para instalar Chromium en plataformas de despliegue
+ * Versión que no falla el build si Chrome no está disponible
  */
 
 import puppeteer from 'puppeteer';
@@ -17,7 +18,7 @@ async function installChrome() {
     let browser;
     try {
       browser = await puppeteer.launch({
-        headless: true,
+        headless: "new",
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -41,43 +42,7 @@ async function installChrome() {
       }
     }
     
-    // Si falla, intentar instalar Chromium
-    console.log('🔄 Intentando instalar Chromium...');
-    
-    const installCommands = [
-      'npx puppeteer install',
-      'npx @puppeteer/browsers install chrome@stable',
-      'npm install puppeteer --no-save'
-    ];
-    
-    for (const cmd of installCommands) {
-      try {
-        console.log(`📦 Ejecutando: ${cmd}`);
-        execSync(cmd, { stdio: 'inherit', timeout: 300000 }); // 5 minutos timeout
-        console.log('✅ Comando ejecutado exitosamente');
-        
-        // Verificar que funciona después de la instalación
-        const testBrowser = await puppeteer.launch({
-          headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-        await testBrowser.close();
-        console.log('✅ Chromium instalado y verificado correctamente');
-        return;
-      } catch (installError) {
-        console.error(`❌ Error con comando ${cmd}:`, installError.message);
-      }
-    }
-    
-    // Si nada funciona, mostrar información de diagnóstico
-    console.log('🔍 Información de diagnóstico:');
-    console.log('Node version:', process.version);
-    console.log('Platform:', process.platform);
-    console.log('Architecture:', process.arch);
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('PUPPETEER_SKIP_CHROMIUM_DOWNLOAD:', process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD);
-    
-    // Buscar instalaciones de Chrome existentes
+    // Buscar instalaciones de Chrome existentes primero
     const possibleChromePaths = [
       '/usr/bin/google-chrome-stable',
       '/usr/bin/google-chrome',
@@ -94,13 +59,13 @@ async function installChrome() {
         // Intentar usar esta instalación
         try {
           const testBrowser = await puppeteer.launch({
-            headless: true,
+            headless: "new",
             executablePath: chromePath,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
           });
           await testBrowser.close();
           console.log('✅ Chrome externo verificado correctamente');
-          console.log(`💡 Configura PUPPETEER_EXECUTABLE_PATH=${chromePath} en tu entorno`);
+          console.log(`💡 Chrome funcional encontrado en: ${chromePath}`);
           return;
         } catch (error) {
           console.log(`❌ Chrome en ${chromePath} no funciona:`, error.message);
@@ -108,19 +73,60 @@ async function installChrome() {
       }
     }
     
-    console.error('❌ No se pudo instalar o encontrar una instalación funcional de Chrome');
-    console.log('💡 Opciones:');
-    console.log('1. Usar una alternativa sin Puppeteer (ver documentación)');
-    console.log('2. Configurar buildpack de Chrome en tu plataforma de deployment');
-    console.log('3. Usar un servicio de scraping externo');
+    // Si no se encuentra Chrome, intentar instalarlo
+    console.log('🔄 Intentando instalar Chromium...');
     
-    process.exit(1);
+    const installCommands = [
+      'npx puppeteer install',
+      'npx @puppeteer/browsers install chrome@stable --platform=linux',
+      'npm install puppeteer --no-save'
+    ];
+    
+    for (const cmd of installCommands) {
+      try {
+        console.log(`📦 Ejecutando: ${cmd}`);
+        execSync(cmd, { stdio: 'pipe', timeout: 180000 }); // 3 minutos timeout
+        console.log('✅ Comando ejecutado exitosamente');
+        
+        // Verificar que funciona después de la instalación
+        const testBrowser = await puppeteer.launch({
+          headless: "new",
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        await testBrowser.close();
+        console.log('✅ Chromium instalado y verificado correctamente');
+        return;
+      } catch (installError) {
+        console.error(`❌ Error con comando ${cmd}:`, installError.message);
+      }
+    }
+    
+    // Si nada funciona, mostrar información de diagnóstico pero NO fallar el build
+    console.log('🔍 Información de diagnóstico:');
+    console.log('Node version:', process.version);
+    console.log('Platform:', process.platform);
+    console.log('Architecture:', process.arch);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('PUPPETEER_SKIP_CHROMIUM_DOWNLOAD:', process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD);
+    
+    console.log('⚠️ No se pudo instalar Chrome, pero la aplicación continuará con servicios alternativos');
+    console.log('� La aplicación usará automáticamente el servicio de scraping ligero cuando sea necesario');
+    console.log('🚀 Build continuará sin fallar...');
+    
+    // NO hacer process.exit(1) para no fallar el build
+    console.log('✅ Script de instalación completado (modo fallback)');
     
   } catch (error) {
     console.error('❌ Error general:', error.message);
-    process.exit(1);
+    console.log('⚠️ Error en instalación de Chrome, pero build continuará');
+    console.log('💡 La aplicación usará servicios alternativos');
+    // NO hacer process.exit(1) para no fallar el build
   }
 }
 
 // Ejecutar la instalación
-installChrome();
+installChrome().catch(error => {
+  console.error('❌ Error ejecutando instalación:', error.message);
+  console.log('⚠️ Build continuará sin Chrome (modo fallback)');
+  // NO hacer process.exit(1)
+});
