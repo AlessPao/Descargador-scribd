@@ -3,21 +3,11 @@ services:
     name: scribd-dl-backend
     env: node
     plan: free
-    buildCommand: cd backend && npm run build
+    buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
         value: https://descargador-scribd.vercel.app
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: false
-      - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/.cache/puppeteer
-      - key: CHROME_BIN
-        value: 
-      - key: PUPPETEER_EXECUTABLE_PATH
-        value: 
-      - key: ENABLE_LIGHT_SCRAPING
-        value: true
     healthCheckPath: /api/config
