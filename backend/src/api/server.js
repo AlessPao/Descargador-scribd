@@ -20,49 +20,16 @@ const getOutputDir = () => {
     return path.isAbsolute(outputDir) ? outputDir : path.resolve(process.cwd(), outputDir);
 };
 
-// Configuración CORS para producción
+// Configuración CORS simple y robusta
 const corsOptions = {
-    origin: function (origin, callback) {
-        console.log(`CORS check for origin: ${origin}`);
-        
-        // Permitir requests sin origin (como Postman, apps móviles, etc.)
-        if (!origin) {
-            console.log('No origin, allowing request');
-            return callback(null, true);
-        }
-        
-        const allowedOrigins = process.env.NODE_ENV === 'production' 
-            ? [
-                'https://descargador-scribd.vercel.app'
-              ]
-            : [
-                'http://localhost:3000',
-                'http://127.0.0.1:3000',
-                'http://localhost:5173',
-                'http://127.0.0.1:5173'
-              ];
-        
-        console.log(`Checking origin ${origin} against allowed origins: ${allowedOrigins.join(', ')}`);
-        
-        if (allowedOrigins.includes(origin)) {
-            console.log(`Origin ${origin} is allowed`);
-            callback(null, true);
-        } else {
-            console.log(`CORS blocked origin: ${origin}`);
-            callback(null, true); // Permitir temporalmente para debug
-        }
-    },
+    origin: ['https://descargador-scribd.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
-    optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 };
 
 // Middleware
 server.use(cors(corsOptions));
-
-// Middleware adicional para manejar preflight requests
-server.options('*', cors(corsOptions));
 
 server.use(express.json());
 server.use(express.static(getOutputDir()));
