@@ -1,0 +1,38 @@
+{
+  "name": "scribd-dl-fullstack",
+  "version": "1.0.0",
+  "description": "Scribd Document Downloader - Full Stack Application",
+  "private": true,
+  "scripts": {
+    "install": "cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm run build && cd ../backend && npm start",
+    "deploy": "npm run build && cd backend && npm start",
+    "backend": "cd backend && npm start",
+    "frontend": "cd frontend && npm run dev",
+    "cli": "cd backend && npm run cli"
+  },
+  "keywords": [
+    "scribd",
+    "downloader",
+    "pdf",
+    "document",
+    "web-scraping",
+    "react",
+    "node.js",
+    "express"
+  ],
+  "author": {
+    "name": "ray.yukawai",
+    "email": "ray.yukawai@gmail.com"
+  },
+  "license": "GPL-3.0-or-later",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

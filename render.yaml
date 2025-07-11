@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: scribd-dl-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://your-vercel-app.vercel.app
+    healthCheckPath: /api/config
